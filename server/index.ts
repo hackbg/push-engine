@@ -10,7 +10,7 @@ import { logger } from 'server/services/logger.js';
 import {
   executeContract as executeWriteContract,
   verifyReport,
-} from 'server/services/client.js';
+} from 'server/services/clientEvm.js';
 import { ReportV3, StreamReport } from 'server/types.js';
 import { formatUSD, isPositive, printError } from 'server/utils.js';
 import { readFile } from 'node:fs/promises';

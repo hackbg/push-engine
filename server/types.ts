@@ -39,7 +39,7 @@ export type Interval = { interval: string };
 
 export type Config = {
   chainId: number;
-  chains: {
+  chainsEVM: {
     id: number | string;
     name: string;
     currencyName: string;
@@ -47,6 +47,11 @@ export type Config = {
     currencyDecimals: number | string;
     rpc: string;
     testnet: string | boolean;
+  }[];
+  chainsSolana: {
+    cluster: string;
+    name: string;
+    rpcUrl: string;
   }[];
   verifierAddresses: { chainId: number; address: Address }[];
   feeds: {
@@ -66,4 +71,5 @@ export type Config = {
   gasCap: string;
   interval: string;
   priceDeltaPercentage: number | string;
+  vm?: 'evm' | 'svm';
 };
