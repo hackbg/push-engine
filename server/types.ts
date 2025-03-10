@@ -72,4 +72,5 @@ export type Config = {
   interval: string;
   priceDeltaPercentage: number | string;
   vm?: 'evm' | 'svm';
+  cluster?: string;
 };

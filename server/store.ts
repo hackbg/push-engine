@@ -116,7 +116,13 @@ const setContractAddress = async (
   chainId: string,
   address: Address
 ) => await setValue(`contractAddress:${feedId}:${chainId}`, address);
-const getVm = async () => await getValue('vm');
+const getVm = async () => {
+  const vm = await getValue('vm');
+  if (vm === 'svm') {
+    return vm;
+  }
+  return 'evm';
+};
 const setVm = async (vm: 'evm' | 'svm') => setValue('vm', vm);
 
 const seedConfig = async (config: Config) => {
