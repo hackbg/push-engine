@@ -7,19 +7,14 @@ import { CronJob, CronTime } from 'cron';
 import type ChainlinkDatastreamsConsumer from '@hackbg/chainlink-datastreams-consumer';
 import { CronExpressionParser } from 'cron-parser';
 import { logger } from 'server/services/logger.js';
-import { executeContract as executeWriteContract } from 'server/services/clientEvm.js';
-import { ReportV3, StreamReport } from 'server/types.js';
+import { StreamReport } from 'server/types.js';
 import { formatUSD, isPositive, printError } from 'server/utils.js';
 import { readFile } from 'node:fs/promises';
 import {
   addFeed,
-  getAbi,
-  getChainId,
   getFeedExists,
   getFeedName,
   getFeeds,
-  getFunctionArgs,
-  getFunctionName,
   getInterval,
   getLatestReport,
   getPriceDelta,
@@ -28,14 +23,13 @@ import {
   seedConfig,
   setInterval,
   setLatestReport,
-  setSavedReport,
 } from './store.js';
 import { schedule } from './services/limiter.js';
 import { createDatastream } from './services/datastreams.js';
 import { getReportPrice } from '~/lib/utils.js';
 import { config } from './config/config.js';
 import { isHex } from 'viem';
-import { verifyReport } from './services/client.js';
+import { dataUpdater } from './services/client.js';
 
 const viteDevServer =
   process.env.NODE_ENV === 'production'
@@ -298,58 +292,6 @@ app.listen(appPort, async () => {
 });
 
 // https://docs.chain.link/data-streams/crypto-streams?network=arbitrum&page=1#testnet-crypto-streams
-
-async function dataUpdater({ report }: { report: StreamReport }) {
-  try {
-    const chainId = await getChainId();
-    if (!chainId) {
-      logger.warn(
-        `🛑 ChainId is missing. Connect to a chain and try again | Aborting`
-      );
-      return;
-    }
-    const verifiedReport = await verifyReport(report);
-    const { feedId } = report;
-    if (!verifiedReport) {
-      logger.warn(`🛑 Verified report is missing | Aborting`);
-      return;
-    }
-    const functionName = await getFunctionName(feedId, chainId);
-    if (!functionName) {
-      logger.warn(`🛑 Function name is missing | Aborting`);
-      return;
-    }
-    const abi = await getAbi(feedId, chainId);
-    if (!abi) {
-      logger.warn(`🛑 Contract ABI is missing | Aborting`);
-      return;
-    }
-    logger.info('✅ Report verified', { verifiedReport });
-    const transaction = await executeWriteContract({
-      report: verifiedReport as ReportV3,
-      abi: JSON.parse(abi),
-      functionName,
-      functionArgs: await getFunctionArgs(feedId, chainId),
-    });
-    if (transaction?.status) {
-      logger.info(`ℹ️ Transaction status: ${transaction?.status}`, {
-        transaction,
-      });
-    }
-    if (transaction?.status === 'success') {
-      await setSavedReport(report);
-      logger.info(
-        `💾 Price stored | ${await getFeedName(feedId)}: ${formatUSD(
-          getReportPrice(report)
-        )}$`,
-        { report }
-      );
-    }
-  } catch (error) {
-    logger.error(printError(error), error);
-    console.error(error);
-  }
-}
 
 function createCronJob(feedId: string, interval: string) {
   return new CronJob(
