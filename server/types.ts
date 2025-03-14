@@ -1,3 +1,4 @@
+import { Idl } from '@coral-xyz/anchor';
 import { Report } from '@hackbg/chainlink-datastreams-consumer';
 import { Abi, Address, Hex } from 'viem';
 
@@ -39,7 +40,7 @@ export type Interval = { interval: string };
 
 export type Config = {
   chainId: number;
-  chainsEVM: {
+  chains: {
     id: number | string;
     name: string;
     currencyName: string;
@@ -48,18 +49,7 @@ export type Config = {
     rpc: string;
     testnet: string | boolean;
   }[];
-  chainsSolana: {
-    cluster: string;
-    name: string;
-    rpcUrl: string;
-    testnet: string | boolean;
-  }[];
-  verifierAddressesEVM: { chainId: number; address: Address }[];
-  verifierProgramsSolana: {
-    cluster: string;
-    verifierProgramID: string;
-    accessControllerAccount: string;
-  }[];
+  verifierAddresses: { chainId: number; address: Address }[];
   feeds: {
     name: string;
     feedId: Hex;
@@ -74,10 +64,32 @@ export type Config = {
       functionArgs: string[];
     }[];
   }[];
-  targetPrograms: { feedId: Hex }[];
   gasCap: string;
   interval: string;
   priceDeltaPercentage: number | string;
   vm?: 'evm' | 'svm';
-  cluster?: string;
+  svm?: {
+    cluster?: string;
+    chains?: {
+      cluster: string;
+      name: string;
+      rpcUrl: string;
+      testnet: string | boolean;
+    }[];
+    verifierPrograms?: {
+      cluster: string;
+      verifierProgramID: string;
+      accessControllerAccount: string;
+    }[];
+    targetChains: {
+      cluster: string;
+      targetPrograms: {
+        feedId: Hex;
+        instructionName: string;
+        instructionArgs: { name: string; type: 'string' | 'number' }[];
+        instructionPDA: string;
+        idl: Idl;
+      }[];
+    }[];
+  };
 };
