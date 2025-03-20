@@ -12,32 +12,32 @@ import {
   Abi,
   Hex,
   formatUnits,
-} from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
+} from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 import {
   estimateContractGas,
   simulateContract,
   waitForTransactionReceipt,
   writeContract,
   readContract,
-} from 'viem/actions';
-import { ReportV3, ReportV4, StreamReport } from '../types';
-import { feeManagerAbi, verifierProxyAbi } from '../config/abi';
-import { logger } from './logger';
-import { getAllChains } from '../config/chains';
+} from "viem/actions";
+import { ReportV3, ReportV4, StreamReport } from "../types";
+import { feeManagerAbi, verifierProxyAbi } from "../config/abi";
+import { logger } from "./logger";
+import { getAllChains } from "../config/chains";
 import {
   getChainId,
   getContractAddress,
   getGasCap,
   setChainId,
-} from '../store';
-import { getVerifier } from '../config/verifiers';
+} from "../store";
+import { getVerifier } from "../config/verifiers";
 
 const getAccount = () => {
   try {
     return privateKeyToAccount(process.env.PRIVATE_KEY as Hex);
   } catch (error) {
-    logger.error('ERROR', { error });
+    logger.error("ERROR", { error });
     return;
   }
 };
@@ -57,40 +57,40 @@ export async function executeContract({
   try {
     const chainId = await getChainId();
     if (!chainId) {
-      logger.warn('⚠️ Chain is missing. Connect to a chain and try again');
+      logger.warn("⚠️ Chain is missing. Connect to a chain and try again");
       return;
     }
     const account = getAccount();
     if (!account) {
-      logger.error('‼️ Account is missing');
+      logger.error("‼️ Account is missing");
       return;
     }
 
     if (!abi || abi.length === 0) {
-      logger.warn('⚠️ No abi provided');
+      logger.warn("⚠️ No abi provided");
       return;
     }
     if (!functionName || functionName.length === 0) {
-      logger.warn('⚠️ No functionName provided');
+      logger.warn("⚠️ No functionName provided");
       return;
     }
     if (!functionArgs || functionArgs.length === 0) {
-      logger.warn('⚠️ No args provided');
+      logger.warn("⚠️ No args provided");
       return;
     }
 
-    logger.info('📝 Prepared verification transaction', report);
+    logger.info("📝 Prepared verification transaction", report);
 
     const args = functionArgs.map((arg) => report[arg as keyof ReportV3]);
 
     const address = await getContractAddress(report.feedId, chainId);
     if (!address || !isAddress(address)) {
-      logger.warn('⚠️ Contract address is missing');
+      logger.warn("⚠️ Contract address is missing");
       return;
     }
     const clients = await getClients();
     if (!clients || !clients.publicClient || !clients.walletClient) {
-      logger.warn('⚠️ Invalid clients', { clients });
+      logger.warn("⚠️ Invalid clients", { clients });
       return;
     }
     const { publicClient, walletClient } = clients;
@@ -124,14 +124,14 @@ export async function executeContract({
       functionName,
       args,
     });
-    logger.info('ℹ️ Transaction simulated', request);
+    logger.info("ℹ️ Transaction simulated", request);
 
     const hash = await writeContract(walletClient, request);
     logger.info(`⌛️ Sending transaction ${hash} `, hash);
     const txReceipt = await waitForTransactionReceipt(publicClient, { hash });
     return txReceipt;
   } catch (error) {
-    logger.error('ERROR', { error });
+    logger.error("ERROR", { error });
   }
 }
 
@@ -139,7 +139,7 @@ async function getContractAddresses() {
   try {
     const clients = await getClients();
     if (!clients || !clients.publicClient) {
-      logger.warn('⚠️ Invalid clients', { clients });
+      logger.warn("⚠️ Invalid clients", { clients });
       return {
         verifierProxyAddress: zeroAddress,
         feeManagerAddress: zeroAddress,
@@ -150,31 +150,31 @@ async function getContractAddresses() {
     const { publicClient } = clients;
     const chainId = await getChainId();
     if (!chainId) {
-      logger.warn('⚠️ No chainId provided');
+      logger.warn("⚠️ No chainId provided");
       return;
     }
     const verifierProxyAddress = await getVerifier(chainId);
     if (!verifierProxyAddress) {
-      logger.warn('⚠️ No verifier address provided');
+      logger.warn("⚠️ No verifier address provided");
       return;
     }
 
     const feeManagerAddress = await readContract(publicClient, {
       address: verifierProxyAddress,
       abi: verifierProxyAbi,
-      functionName: 's_feeManager',
+      functionName: "s_feeManager",
     });
 
     const [rewardManagerAddress, feeTokenAddress] = await Promise.all([
       readContract(publicClient, {
         address: feeManagerAddress,
         abi: feeManagerAbi,
-        functionName: 'i_rewardManager',
+        functionName: "i_rewardManager",
       }),
       readContract(publicClient, {
         address: feeManagerAddress,
         abi: feeManagerAbi,
-        functionName: 'i_linkAddress',
+        functionName: "i_linkAddress",
       }),
     ]);
 
@@ -185,7 +185,7 @@ async function getContractAddresses() {
       feeTokenAddress,
     };
   } catch (error) {
-    logger.error('ERROR', { error });
+    logger.error("ERROR", { error });
     return {
       verifierProxyAddress: zeroAddress,
       feeManagerAddress: zeroAddress,
@@ -199,31 +199,39 @@ export async function verifyReport(report: StreamReport) {
   try {
     const account = getAccount();
     if (!account) {
-      logger.error('‼️ Account is missing');
+      logger.error("‼️ Account is missing");
       return;
     }
     const clients = await getClients();
+
     if (!clients || !clients.publicClient || !clients.walletClient) {
-      logger.warn('⚠️ Invalid clients', { clients });
+      logger.warn("⚠️ Invalid clients", { clients });
       return;
     }
     const { publicClient, walletClient } = clients;
 
     const [, reportData] = decodeAbiParameters(
       [
-        { type: 'bytes32[3]', name: '' },
-        { type: 'bytes', name: 'reportData' },
+        { type: "bytes32[3]", name: "" },
+        { type: "bytes", name: "reportData" },
       ],
       report.rawReport
     );
 
     const reportVersion = reportData.charAt(5);
-    if (reportVersion !== '3' && reportVersion !== '4') {
-      logger.warn('⚠️ Invalid report version', { report });
+    if (reportVersion !== "3" && reportVersion !== "4") {
+      logger.warn("⚠️ Invalid report version", { report });
       return;
     }
 
     const contractAddresses = await getContractAddresses();
+
+    //     {
+    //   verifierProxyAddress: '0x2482A390bE58b3cBB6Df72dB2e950Db20256e55E',
+    //   feeManagerAddress: '0x770718b99955BB9fE9eb896523866a1f2E47F58e',
+    //   rewardManagerAddress: '0xEf70db528C6Da9eeadb1FD182E1c682745ef190c',
+    //   feeTokenAddress: '0xC82Ea35634BcE95C394B6BC00626f827bB0F4801'
+    // }
 
     if (
       !contractAddresses ||
@@ -231,7 +239,7 @@ export async function verifyReport(report: StreamReport) {
         .map((address) => isAddressValid(address))
         .includes(false)
     ) {
-      logger.warn('⚠️ Invalid contract addresses', { contractAddresses });
+      logger.warn("⚠️ Invalid contract addresses", { contractAddresses });
       return;
     }
 
@@ -245,13 +253,13 @@ export async function verifyReport(report: StreamReport) {
     const [fee] = await readContract(publicClient, {
       address: feeManagerAddress,
       abi: feeManagerAbi,
-      functionName: 'getFeeAndReward',
+      functionName: "getFeeAndReward",
       args: [account.address, reportData, feeTokenAddress],
     });
     logger.info(`⛽️ Estimated fee: ${formatEther(fee.amount)} LINK`, { fee });
 
     const feeTokenAddressEncoded = encodeAbiParameters(
-      [{ type: 'address', name: 'parameterPayload' }],
+      [{ type: "address", name: "parameterPayload" }],
       [feeTokenAddress]
     );
 
@@ -259,7 +267,7 @@ export async function verifyReport(report: StreamReport) {
       account,
       address: feeTokenAddress,
       abi: erc20Abi,
-      functionName: 'approve',
+      functionName: "approve",
       args: [rewardManagerAddress, fee.amount],
     });
 
@@ -269,70 +277,98 @@ export async function verifyReport(report: StreamReport) {
       }`,
       { approveLinkGas }
     );
-    const gasCap = await getGasCap();
-    if (gasCap && approveLinkGas > BigInt(gasCap)) {
-      logger.info(
-        `🛑 LINK approval gas is above the limit of ${formatEther(
-          BigInt(gasCap)
-        )} | Aborting`,
-        { approveLinkGas, gasCap }
-      );
-      return;
-    }
+    const gasCap = "150000";
 
-    const { request: approveLinkRequest } = await simulateContract(
-      publicClient,
-      {
+    // if (gasCap && approveLinkGas > BigInt(gasCap)) {
+    //   logger.info(
+    //     `🛑 LINK approval gas is above the limit of ${formatEther(
+    //       BigInt(gasCap)
+    //     )} | Aborting`,
+    //     { approveLinkGas, gasCap }
+    //   );
+    //   return;
+    // }
+
+    // const { request: approveLinkRequest } = await simulateContract(
+    //   publicClient,
+    //   {
+    //     account,
+    //     address: feeTokenAddress,
+    //     abi: erc20Abi,
+    //     functionName: "approve",
+    //     args: [rewardManagerAddress, fee.amount],
+    //   }
+    // );
+
+    console.log("try and approve link");
+
+    try {
+      const approveLinkHash = await writeContract(walletClient, {
         account,
         address: feeTokenAddress,
         abi: erc20Abi,
-        functionName: 'approve',
+        functionName: "approve",
         args: [rewardManagerAddress, fee.amount],
-      }
-    );
-    const approveLinkHash = await writeContract(
-      walletClient,
-      approveLinkRequest
-    );
-    await waitForTransactionReceipt(publicClient, { hash: approveLinkHash });
+      });
 
-    const verifyReportGas = await estimateContractGas(publicClient, {
-      account,
-      address: verifierProxyAddress,
-      abi: verifierProxyAbi,
-      functionName: 'verify',
-      args: [report.rawReport, feeTokenAddressEncoded],
-    });
-    logger.info(
-      `⛽️ Estimated gas for verification: ${formatEther(verifyReportGas)} ${
-        publicClient.chain?.nativeCurrency.symbol
-      }`,
-      { verifyReportGas }
-    );
-    if (gasCap && verifyReportGas > BigInt(gasCap)) {
-      logger.info(
-        `🛑 Verification gas is above the limit of ${formatEther(
-          BigInt(gasCap)
-        )} | Aborting`,
-        { verifyReportGas, gasCap }
-      );
-      return;
+      await waitForTransactionReceipt(publicClient, {
+        hash: approveLinkHash,
+      });
+      console.log("approveLinkHash");
+      console.log(approveLinkHash);
+
+      await sleep(10000);
+    } catch (e) {
+      console.log("FAILED TO WRITE APPROVAL TX");
+      console.log(e);
     }
+
+    console.log("APPROVED LINK TO REWARD MANAGER ADDRESS");
+
+    // const verifyReportGas = await estimateContractGas(publicClient, {
+    //   account,
+    //   address: verifierProxyAddress,
+    //   abi: verifierProxyAbi,
+    //   functionName: "verify",
+    //   args: [report.rawReport, feeTokenAddressEncoded],
+    // });
+    // logger.info(
+    //   `⛽️ Estimated gas for verification: ${formatEther(verifyReportGas)} ${
+    //     publicClient.chain?.nativeCurrency.symbol
+    //   }`,
+    //   { verifyReportGas }
+    // );
+    // if (gasCap && verifyReportGas > BigInt(gasCap)) {
+    //   logger.info(
+    //     `🛑 Verification gas is above the limit of ${formatEther(
+    //       BigInt(gasCap)
+    //     )} | Aborting`,
+    //     { verifyReportGas, gasCap }
+    //   );
+    //   return;
+    // }
+
     const { request: verifyReportRequest, result: verifiedReportData } =
       await simulateContract(publicClient, {
         account,
         address: verifierProxyAddress,
         abi: verifierProxyAbi,
-        functionName: 'verify',
+        functionName: "verify",
         args: [report.rawReport, feeTokenAddressEncoded],
       });
+
     const verifyReportHash = await writeContract(
       walletClient,
       verifyReportRequest
     );
+
     await waitForTransactionReceipt(publicClient, { hash: verifyReportHash });
 
-    if (reportVersion === '3') {
+    console.log("SUCCESSFULLY SENT VERIFY TX", verifyReportHash);
+
+    console.log("VERIFIED REPORT DATA", verifiedReportData);
+
+    if (reportVersion === "3") {
       const [
         feedId,
         validFromTimestamp,
@@ -345,15 +381,15 @@ export async function verifyReport(report: StreamReport) {
         ask,
       ] = decodeAbiParameters(
         [
-          { type: 'bytes32', name: 'feedId' },
-          { type: 'uint32', name: 'validFromTimestamp' },
-          { type: 'uint32', name: 'observationsTimestamp' },
-          { type: 'uint192', name: 'nativeFee' },
-          { type: 'uint192', name: 'linkFee' },
-          { type: 'uint32', name: 'expiresAt' },
-          { type: 'int192', name: 'price' },
-          { type: 'int192', name: 'bid' },
-          { type: 'int192', name: 'ask' },
+          { type: "bytes32", name: "feedId" },
+          { type: "uint32", name: "validFromTimestamp" },
+          { type: "uint32", name: "observationsTimestamp" },
+          { type: "uint192", name: "nativeFee" },
+          { type: "uint192", name: "linkFee" },
+          { type: "uint32", name: "expiresAt" },
+          { type: "int192", name: "price" },
+          { type: "int192", name: "bid" },
+          { type: "int192", name: "ask" },
         ],
         verifiedReportData
       );
@@ -370,7 +406,7 @@ export async function verifyReport(report: StreamReport) {
       };
       return verifiedReport;
     }
-    if (reportVersion === '4') {
+    if (reportVersion === "4") {
       const [
         feedId,
         validFromTimestamp,
@@ -382,14 +418,14 @@ export async function verifyReport(report: StreamReport) {
         marketStatus,
       ] = decodeAbiParameters(
         [
-          { type: 'bytes32', name: 'feedId' },
-          { type: 'uint32', name: 'validFromTimestamp' },
-          { type: 'uint32', name: 'observationsTimestamp' },
-          { type: 'uint192', name: 'nativeFee' },
-          { type: 'uint192', name: 'linkFee' },
-          { type: 'uint32', name: 'expiresAt' },
-          { type: 'int192', name: 'price' },
-          { type: 'uint32', name: 'marketStatus' },
+          { type: "bytes32", name: "feedId" },
+          { type: "uint32", name: "validFromTimestamp" },
+          { type: "uint32", name: "observationsTimestamp" },
+          { type: "uint192", name: "nativeFee" },
+          { type: "uint192", name: "linkFee" },
+          { type: "uint32", name: "expiresAt" },
+          { type: "int192", name: "price" },
+          { type: "uint32", name: "marketStatus" },
         ],
         verifiedReportData
       );
@@ -406,7 +442,7 @@ export async function verifyReport(report: StreamReport) {
       return verifiedReport;
     }
   } catch (error) {
-    logger.error('ERROR', { error });
+    logger.error("ERROR", { error });
   }
 }
 
@@ -415,24 +451,34 @@ const isAddressValid = (address: string) =>
 
 async function getClients() {
   const chainId = await getChainId();
+
   if (!chainId) {
-    logger.warn('⚠️ No chainId provided');
+    logger.warn("⚠️ No chainId provided");
     return;
   }
   const chains = await getAllChains();
   const chain = chains.find((chain) => chain.id === Number(chainId));
   if (!chain) {
-    logger.warn('⚠️ Invalid chain', { chainId });
-    setChainId('');
+    logger.warn("⚠️ Invalid chain", { chainId });
+    setChainId("");
   }
   const publicClient = createPublicClient({
     chain,
-    transport: http(),
+    transport: http(process.env.RPC_URL),
   });
+
+  const account = getAccount();
+  if (!account) {
+    logger.error("‼️ Account is missing");
+    return;
+  }
+
   const walletClient = createWalletClient({
+    account,
     chain,
-    transport: http(),
+    transport: http(process.env.RPC_URL),
   });
+
   return { publicClient, walletClient };
 }
 
@@ -440,7 +486,7 @@ export async function getBalance() {
   try {
     const clients = await getClients();
     if (!clients || !clients.publicClient) {
-      logger.warn('⚠️ Invalid clients', { clients });
+      logger.warn("⚠️ Invalid clients", { clients });
       return;
     }
     const { publicClient } = clients;
@@ -450,10 +496,10 @@ export async function getBalance() {
       symbol: publicClient.chain?.nativeCurrency.symbol,
     };
   } catch (error) {
-    logger.error('ERROR', { error });
+    logger.error("ERROR", { error });
     return {
       value: formatEther(0n),
-      symbol: '',
+      symbol: "",
     };
   }
 }
@@ -462,7 +508,7 @@ export async function getLinkBalance() {
   try {
     const clients = await getClients();
     if (!clients || !clients.publicClient) {
-      logger.warn('⚠️ Invalid clients', { clients });
+      logger.warn("⚠️ Invalid clients", { clients });
       return;
     }
     const { publicClient } = clients;
@@ -472,7 +518,7 @@ export async function getLinkBalance() {
       !contractAddresses ||
       !isAddressValid(contractAddresses.feeTokenAddress)
     ) {
-      logger.warn('⚠️ Invalid fee token addresses', { contractAddresses });
+      logger.warn("⚠️ Invalid fee token addresses", { contractAddresses });
       return;
     }
     const { feeTokenAddress } = contractAddresses;
@@ -480,18 +526,18 @@ export async function getLinkBalance() {
       publicClient.readContract({
         address: feeTokenAddress,
         abi: erc20Abi,
-        functionName: 'balanceOf',
+        functionName: "balanceOf",
         args: [accountAddress],
       }),
       publicClient.readContract({
         address: feeTokenAddress,
         abi: erc20Abi,
-        functionName: 'decimals',
+        functionName: "decimals",
       }),
       publicClient.readContract({
         address: feeTokenAddress,
         abi: erc20Abi,
-        functionName: 'symbol',
+        functionName: "symbol",
       }),
     ]);
     return {
@@ -499,10 +545,10 @@ export async function getLinkBalance() {
       symbol,
     };
   } catch (error) {
-    logger.error('ERROR', { error });
+    logger.error("ERROR", { error });
     return {
       value: formatEther(0n),
-      symbol: '',
+      symbol: "",
     };
   }
 }
@@ -510,9 +556,13 @@ export async function getLinkBalance() {
 export async function getCurrentChain() {
   const clients = await getClients();
   if (!clients || !clients.publicClient) {
-    logger.warn('⚠️ Invalid clients', { clients });
+    logger.warn("⚠️ Invalid clients", { clients });
     return;
   }
   const { publicClient } = clients;
   return { chainId: publicClient.chain?.id, name: publicClient.chain?.name };
 }
+
+export const sleep = (ms: number): Promise<void> => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};

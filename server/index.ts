@@ -1,19 +1,19 @@
-import { createRequestHandler } from '@remix-run/express';
-import { type ServerBuild } from '@remix-run/node';
-import compression from 'compression';
-import express from 'express';
-import morgan from 'morgan';
-import { CronJob, CronTime } from 'cron';
-import type ChainlinkDatastreamsConsumer from '@hackbg/chainlink-datastreams-consumer';
-import { CronExpressionParser } from 'cron-parser';
-import { logger } from 'server/services/logger.js';
+import { createRequestHandler } from "@remix-run/express";
+import { type ServerBuild } from "@remix-run/node";
+import compression from "compression";
+import express from "express";
+import morgan from "morgan";
+import { CronJob, CronTime } from "cron";
+import type ChainlinkDatastreamsConsumer from "@hackbg/chainlink-datastreams-consumer";
+import { CronExpressionParser } from "cron-parser";
+import { logger } from "server/services/logger.js";
 import {
   executeContract as executeWriteContract,
   verifyReport,
-} from 'server/services/client.js';
-import { ReportV3, StreamReport } from 'server/types.js';
-import { formatUSD, isPositive } from 'server/utils.js';
-import { readFile } from 'node:fs/promises';
+} from "server/services/client.js";
+import { ReportV3, StreamReport } from "server/types.js";
+import { formatUSD, isPositive } from "server/utils.js";
+import { readFile } from "node:fs/promises";
 import {
   addFeed,
   getAbi,
@@ -32,17 +32,17 @@ import {
   setInterval,
   setLatestReport,
   setSavedReport,
-} from './store.js';
-import { schedule } from './services/limiter.js';
-import { createDatastream } from './services/datastreams.js';
-import { getReportPrice } from '~/lib/utils.js';
-import { config } from './config/config.js';
-import { isHex } from 'viem';
+} from "./store.js";
+import { schedule } from "./services/limiter.js";
+import { createDatastream } from "./services/datastreams.js";
+import { getReportPrice } from "~/lib/utils.js";
+import { config } from "./config/config.js";
+import { isHex } from "viem";
 
 const viteDevServer =
-  process.env.NODE_ENV === 'production'
+  process.env.NODE_ENV === "production"
     ? undefined
-    : await import('vite').then((vite) =>
+    : await import("vite").then((vite) =>
         vite.createServer({
           server: { middlewareMode: true },
         })
@@ -54,7 +54,7 @@ app.use(express.json());
 app.use(compression());
 
 // http://expressjs.com/en/advanced/best-practice-security.html#at-a-minimum-disable-x-powered-by-header
-app.disable('x-powered-by');
+app.disable("x-powered-by");
 
 // handle asset requests
 if (viteDevServer) {
@@ -62,39 +62,39 @@ if (viteDevServer) {
 } else {
   // Vite fingerprints its assets so we can cache forever.
   app.use(
-    '/assets',
-    express.static('build/client/assets', { immutable: true, maxAge: '1y' })
+    "/assets",
+    express.static("build/client/assets", { immutable: true, maxAge: "1y" })
   );
 }
 
 // Everything else (like favicon.ico) is cached for an hour. You may want to be
 // more aggressive with this caching.
-app.use(express.static('build/client', { maxAge: '1h' }));
+app.use(express.static("build/client", { maxAge: "1h" }));
 
-app.use(morgan('tiny'));
+app.use(morgan("tiny"));
 
 async function getBuild() {
   try {
     const build = viteDevServer
-      ? await viteDevServer.ssrLoadModule('virtual:remix/server-build')
+      ? await viteDevServer.ssrLoadModule("virtual:remix/server-build")
       : // @ts-expect-error - the file might not exist yet but it will
         // eslint-disable-next-line import/no-unresolved
-        await import('../build/server/remix.js');
+        await import("../build/server/remix.js");
 
     return { build: build as unknown as ServerBuild, error: null };
   } catch (error) {
     // Catch error and return null to make express happy and avoid an unrecoverable crash
-    console.error('Error creating build:', error);
+    console.error("Error creating build:", error);
     return { error: error, build: null as unknown as ServerBuild };
   }
 }
 
 const router = express.Router();
 
-router.post('/interval', async (req, res) => {
+router.post("/interval", async (req, res) => {
   try {
     const interval: string = req.body.interval;
-    if (!interval) throw new Error('New interval input is missing');
+    if (!interval) throw new Error("New interval input is missing");
 
     const cronExpression = CronExpressionParser.parse(interval);
     const parsedInterval = cronExpression.stringify(true);
@@ -113,38 +113,38 @@ router.post('/interval', async (req, res) => {
     });
     res.send({ interval: parsedInterval });
   } catch (err) {
-    logger.warn('⚠ New interval invalid input', { body: req.body, err });
+    logger.warn("⚠ New interval invalid input", { body: req.body, err });
     res.status(400);
-    return res.send({ warning: 'Invalid input' });
+    return res.send({ warning: "Invalid input" });
   }
 });
 
-router.post('/feeds/add', async (req, res) => {
+router.post("/feeds/add", async (req, res) => {
   const name: string = req.body.name;
   const feedId: string = req.body.feedId;
 
   if (!name || !feedId || !isHex(feedId)) {
-    logger.warn('⚠ Add feed invalid input', { body: req.body });
+    logger.warn("⚠ Add feed invalid input", { body: req.body });
     res.status(400);
-    return res.send({ warning: 'Add feed invalid input' });
+    return res.send({ warning: "Add feed invalid input" });
   }
   const isFeedExist = await getFeedExists(feedId);
 
   if (isFeedExist) {
-    logger.info('⚠ Feed already exists', { feed: { name, feedId } });
+    logger.info("⚠ Feed already exists", { feed: { name, feedId } });
     res.status(400);
-    return res.send({ warning: 'Feed already exists' });
+    return res.send({ warning: "Feed already exists" });
   }
 
   await addFeed({ feedId, name });
   const interval = await getInterval();
   if (!interval) {
-    logger.warn('⚠ Interval is missing. Set interval and try again');
+    logger.warn("⚠ Interval is missing. Set interval and try again");
     res.status(400);
-    return res.send({ warning: 'Interval missing' });
+    return res.send({ warning: "Interval missing" });
   }
   const consumer = createDatastream([feedId]);
-  consumer.on('report', async (report: StreamReport) => {
+  consumer.on("report", async (report: StreamReport) => {
     setLatestReport(report);
   });
   jobs.push({
@@ -156,28 +156,28 @@ router.post('/feeds/add', async (req, res) => {
   res.send(await getFeeds());
 });
 
-router.post('/feeds/remove', async (req, res) => {
+router.post("/feeds/remove", async (req, res) => {
   const feedId: string = req.body.feedId;
   if (!feedId) {
-    logger.warn('⚠ Remove feed invalid input', { body: req.body });
+    logger.warn("⚠ Remove feed invalid input", { body: req.body });
     res.status(400);
-    return res.send({ warning: 'Remove feed invalid input' });
+    return res.send({ warning: "Remove feed invalid input" });
   }
 
   const feedExists = getFeedExists(feedId);
 
   if (!feedExists) {
-    logger.warn('⚠️ Feed does not exists', { feedId });
+    logger.warn("⚠️ Feed does not exists", { feedId });
     res.status(400);
-    return res.send({ warning: 'Feed does not exists' });
+    return res.send({ warning: "Feed does not exists" });
   }
 
   const job = jobs.find((job) => job.feedId === feedId);
 
   if (!job) {
-    logger.warn('⚠️ Job does not exists', { feedId });
+    logger.warn("⚠️ Job does not exists", { feedId });
     res.status(400);
-    return res.send({ warning: 'Job does not exists' });
+    return res.send({ warning: "Job does not exists" });
   }
 
   const name = await getFeedName(feedId);
@@ -190,17 +190,17 @@ router.post('/feeds/remove', async (req, res) => {
   res.send(await getFeeds());
 });
 
-router.get('/logs', async (req, res) => {
+router.get("/logs", async (req, res) => {
   try {
-    const log = await readFile('./logs/all/all.log', 'utf8');
+    const log = await readFile("./logs/all/all.log", "utf8");
     return res.send({ log });
   } catch (error) {
-    logger.error('ERROR', error);
+    logger.error("ERROR", error);
     return res.send({ log: null });
   }
 });
 
-router.post('/start', async (req, res) => {
+router.post("/start", async (req, res) => {
   await Promise.all(
     jobs.map(async ({ consumer, feedId, job }) => {
       await consumer.subscribeTo([feedId]);
@@ -208,13 +208,13 @@ router.post('/start', async (req, res) => {
     })
   );
   const feeds = jobs.map(({ feedId }) => feedId);
-  logger.info('🏁 All streams have been started', {
+  logger.info("🏁 All streams have been started", {
     feeds,
   });
   res.send({ feeds });
 });
 
-router.post('/stop', async (req, res) => {
+router.post("/stop", async (req, res) => {
   await Promise.all(
     jobs.map(async ({ consumer, job }) => {
       const feeds = [...consumer.feeds];
@@ -223,17 +223,17 @@ router.post('/stop', async (req, res) => {
     })
   );
   const feeds = jobs.map(({ feedId }) => feedId);
-  logger.info('🛑 All streams have been stoped', { feeds });
+  logger.info("🛑 All streams have been stoped", { feeds });
   res.send({ feedsStopped: feeds });
 });
 
-router.get('/latest/:feedId', async (req, res) => {
+router.get("/latest/:feedId", async (req, res) => {
   const feedId = req.params.feedId;
   const latestReport = getLatestReport(feedId);
   res.send({ latestPrice: getReportPrice(latestReport).toString() });
 });
 
-router.get('/status/:feedId', async (req, res) => {
+router.get("/status/:feedId", async (req, res) => {
   const feedId = req.params.feedId;
   const job = jobs.find((j) => j.feedId === feedId);
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -242,11 +242,11 @@ router.get('/status/:feedId', async (req, res) => {
   res.send({ status });
 });
 
-app.use('/api', router);
+app.use("/api", router);
 
 // handle SSR requests
 app.all(
-  '*',
+  "*",
   createRequestHandler({
     build: async () => {
       const { error, build } = await getBuild();
@@ -269,15 +269,20 @@ app.listen(port, async () => {
   logger.info(`🚀 running at http://localhost:${port}`);
   await seedConfig(config);
   const feeds = await getFeeds();
-  const interval = await getInterval();
+  // const interval = await getInterval();
+
+  const interval = "*/60 * * * * *";
+
   if (!interval) {
-    logger.warn('⚠ Interval is missing. Set interval and try again');
+    logger.warn("⚠ Interval is missing. Set interval and try again");
     return;
   }
 
   initJobs({ feeds, interval });
 
-  logger.info('🏁 Streams have been started', { feeds });
+  console.log(feeds);
+
+  logger.info("🏁 Streams have been started", { feeds });
 });
 
 // https://docs.chain.link/data-streams/crypto-streams?network=arbitrum&page=1#testnet-crypto-streams
@@ -292,6 +297,9 @@ async function dataUpdater({ report }: { report: StreamReport }) {
       return;
     }
     const verifiedReport = await verifyReport(report);
+    // console.log("verifiedReport");
+    // console.log(verifiedReport);
+
     const { feedId } = report;
     if (!verifiedReport) {
       logger.warn(`🛑 Verified report is missing | Aborting`);
@@ -307,7 +315,8 @@ async function dataUpdater({ report }: { report: StreamReport }) {
       logger.warn(`🛑 Contract ABI is missing | Aborting`);
       return;
     }
-    logger.info('✅ Report verified', { verifiedReport });
+    logger.info("✅ Report verified", { verifiedReport });
+
     const transaction = await executeWriteContract({
       report: verifiedReport as ReportV3,
       abi: JSON.parse(abi),
@@ -319,7 +328,7 @@ async function dataUpdater({ report }: { report: StreamReport }) {
         transaction,
       });
     }
-    if (transaction?.status === 'success') {
+    if (transaction?.status === "success") {
       await setSavedReport(report);
       logger.info(
         `💾 Price stored | ${await getFeedName(feedId)}: ${formatUSD(
@@ -329,7 +338,7 @@ async function dataUpdater({ report }: { report: StreamReport }) {
       );
     }
   } catch (error) {
-    logger.error('ERROR', error);
+    logger.error("ERROR", error);
   }
 }
 
@@ -339,13 +348,20 @@ function createCronJob(feedId: string, interval: string) {
     async function () {
       const report = getLatestReport(feedId);
       const latestBenchmarkPrice = getReportPrice(report);
+      console.log("latestBenchmarkPrice");
+      console.log(latestBenchmarkPrice);
+
       if (!latestBenchmarkPrice) return;
       const savedBenchmarkPrice = await getSavedReportBenchmarkPrice(feedId);
+
+      console.log("savedBenchmarkPrice");
+      console.log(savedBenchmarkPrice);
+
       const diff = latestBenchmarkPrice - BigInt(savedBenchmarkPrice ?? 0);
       const percentDiff =
         !savedBenchmarkPrice ||
         isNaN(Number(savedBenchmarkPrice)) ||
-        Number(savedBenchmarkPrice) !== 0
+        Number(savedBenchmarkPrice) === 0
           ? 100
           : Number(
               ((latestBenchmarkPrice - BigInt(savedBenchmarkPrice)) *
@@ -353,13 +369,16 @@ function createCronJob(feedId: string, interval: string) {
                 BigInt(savedBenchmarkPrice)
             ) / 10000;
       const priceDelta = await getPriceDelta();
+
+      console.log("priceDelta");
+      console.log(priceDelta);
       if (Math.abs(percentDiff) < Number(priceDelta ?? 0)) return;
       logger.info(
         `🚨 Price deviation detected | ${await getFeedName(
           report.feedId
         )}: ${formatUSD(latestBenchmarkPrice)}$ | ${
-          isPositive(diff) ? '📈' : '📉'
-        } ${isPositive(diff) ? '+' : ''}${percentDiff}% (${formatUSD(diff)}$)`,
+          isPositive(diff) ? "📈" : "📉"
+        } ${isPositive(diff) ? "+" : ""}${percentDiff}% (${formatUSD(diff)}$)`,
         report
       );
 
@@ -375,7 +394,8 @@ function initJobs({ feeds, interval }: { feeds: string[]; interval: string }) {
     jobs.push(
       ...feeds.map((feedId) => {
         const consumer = createDatastream([feedId]);
-        consumer.on('report', async (report: StreamReport) => {
+
+        consumer.on("report", async (report: StreamReport) => {
           setLatestReport(report);
         });
         return {
@@ -386,6 +406,7 @@ function initJobs({ feeds, interval }: { feeds: string[]; interval: string }) {
       })
     );
   } catch (error) {
-    logger.error('ERROR', error);
+    logger.error("ERROR", error);
+    console.error(error);
   }
 }
