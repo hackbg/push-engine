@@ -45,12 +45,12 @@ const getAccount = () => {
 export const accountAddress = getAccount()?.address ?? zeroAddress;
 
 export async function executeContract({
-  report,
+  verifiedReport,
   abi,
   functionName,
   functionArgs,
 }: {
-  report: ReportV3;
+  verifiedReport: ReportV3;
   abi: Abi;
   functionName: string;
   functionArgs: string[];
@@ -58,40 +58,44 @@ export async function executeContract({
   try {
     const chainId = await getChainId();
     if (!chainId) {
-      logger.warn('⚠️ Chain is missing. Connect to a chain and try again');
+      logger.warn("⚠️ Chain is missing. Connect to a chain and try again");
       return;
     }
     const account = getAccount();
     if (!account) {
-      logger.error('‼️ Account is missing');
+      logger.error("‼️ Account is missing");
       return;
     }
 
     if (!abi || abi.length === 0) {
-      logger.warn('⚠️ No abi provided');
+      logger.warn("⚠️ No abi provided");
       return;
     }
     if (!functionName || functionName.length === 0) {
-      logger.warn('⚠️ No functionName provided');
+      logger.warn("⚠️ No functionName provided");
       return;
     }
     if (!functionArgs || functionArgs.length === 0) {
-      logger.warn('⚠️ No args provided');
+      logger.warn("⚠️ No args provided");
       return;
     }
 
-    logger.info('📝 Prepared verification transaction', report);
+    logger.info("📝 Prepared verification transaction", verifiedReport);
 
-    const args = functionArgs.map((arg) => report[arg as keyof ReportV3]);
+    const args = functionArgs.map(
+      (arg) => {
+          verifiedReport[arg as keyof ReportV3];
+      }
+    );
 
-    const address = await getContractAddress(report.feedId, chainId);
+    const address = await getContractAddress(verifiedReport.feedId, chainId);
     if (!address || !isAddress(address)) {
-      logger.warn('⚠️ Contract address is missing');
+      logger.warn("⚠️ Contract address is missing");
       return;
     }
     const clients = await getClients();
     if (!clients || !clients.publicClient || !clients.walletClient) {
-      logger.warn('⚠️ Invalid clients', { clients });
+      logger.warn("⚠️ Invalid clients", { clients });
       return;
     }
     const { publicClient, walletClient } = clients;
@@ -125,14 +129,14 @@ export async function executeContract({
       functionName,
       args,
     });
-    logger.info('ℹ️ Transaction simulated', request);
+    logger.info("ℹ️ Transaction simulated", request);
 
     const hash = await writeContract(walletClient, request);
     logger.info(`⌛️ Sending transaction ${hash} `, hash);
     const txReceipt = await waitForTransactionReceipt(publicClient, { hash });
     return txReceipt;
   } catch (error) {
-    logger.error('ERROR', { error });
+    logger.error("ERROR", { error });
     console.error(error);
   }
 }
@@ -198,7 +202,7 @@ async function getContractAddresses() {
   }
 }
 
-export async function verifyReport(report: StreamReport) {
+export async function verifyReport(report: StreamReport) : Promise<ReportV3 | ReportV4 | undefined> {
   try {
     const account = getAccount();
     if (!account) {
@@ -370,6 +374,7 @@ export async function verifyReport(report: StreamReport) {
         price,
         bid,
         ask,
+        rawReport: report.rawReport
       };
       return verifiedReport;
     }
@@ -405,6 +410,7 @@ export async function verifyReport(report: StreamReport) {
         expiresAt,
         price,
         marketStatus,
+        rawReport: report.rawReport,
       };
       return verifiedReport;
     }

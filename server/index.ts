@@ -310,7 +310,7 @@ async function dataUpdater({ report }: { report: StreamReport }) {
     }
     logger.info('✅ Report verified', { verifiedReport });
     const transaction = await executeWriteContract({
-      report: verifiedReport as ReportV3,
+      verifiedReport: verifiedReport as ReportV3,
       abi: JSON.parse(abi),
       functionName,
       functionArgs: await getFunctionArgs(feedId, chainId),
