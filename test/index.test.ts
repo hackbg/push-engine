@@ -31,7 +31,7 @@ const getVerifierMock = jest.spyOn(verifiers, 'getVerifier');
 
 describe('Unit', () => {
   beforeEach(() => {
-    process.env.PRIVATE_KEY = mockPrivateKey;
+    process.env.PRIVATE_KEY_EVM = mockPrivateKey;
   });
   afterEach(() => {
     jest.clearAllMocks();
