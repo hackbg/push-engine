@@ -100,6 +100,10 @@ const setContractAddress = async (
   chainId: string,
   address: Address
 ) => await setValue(`contractAddress:${feedId}:${chainId}`, address);
+const getSkipVerify = async (feedId: string, chainId: string) =>
+  await getValue(`skipVerify:${feedId}:${chainId}`);
+const setSkipVerify = async (feedId: string, chainId: string, verify: string) =>
+  await setValue(`skipVerify:${feedId}:${chainId}`, verify);
 
 const seedConfig = async (config: Config) => {
   try {
@@ -220,8 +224,14 @@ const seedConfig = async (config: Config) => {
         await Promise.all(
           targetContracts.map(async (contract) => {
             try {
-              const { feedId, address, abi, functionArgs, functionName } =
-                contract;
+              const {
+                feedId,
+                address,
+                abi,
+                functionArgs,
+                functionName,
+                skipVerify,
+              } = contract;
 
               if (!feedId || !isHex(feedId)) {
                 logger.warn('⚠ Contract feedId invalid input', contract);
@@ -267,6 +277,17 @@ const seedConfig = async (config: Config) => {
                     ', '
                   )} has been set for feed ${feedId} on chain ${chainId}`,
                   { feedId, chainId, functionArgs }
+                );
+              }
+              if (skipVerify) {
+                await setSkipVerify(
+                  feedId,
+                  `${chainId}`,
+                  skipVerify.toString()
+                );
+                logger.info(
+                  `📢 Skip verification set to ${skipVerify.toString()} for feed ${feedId}}`,
+                  { feedId, chainId, skipVerify }
                 );
               }
             } catch (error) {
@@ -344,6 +365,8 @@ export {
   setChainId,
   getContractAddress,
   setContractAddress,
+  getSkipVerify,
+  setSkipVerify,
   getGasCap,
   setGasCap,
   getChains,
