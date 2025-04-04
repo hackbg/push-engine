@@ -371,6 +371,7 @@ export async function verifyReport(report: StreamReport) {
         price,
         bid,
         ask,
+        rawReport: report.rawReport,
       };
       return verifiedReport;
     }
@@ -406,6 +407,7 @@ export async function verifyReport(report: StreamReport) {
         expiresAt,
         price,
         marketStatus,
+        rawReport: report.rawReport,
       };
       return verifiedReport;
     }

@@ -373,6 +373,11 @@ export default function ContractSVM() {
                   ask
                 </span>
               </li>
+              <li>
+                <span className="inline-flex items-center rounded-md bg-gray-100 px-1 py-1 text-xs font-semibold text-gray-600">
+                  rawReport
+                </span>
+              </li>
             </ul>
             See documentation for{' '}
             <a
