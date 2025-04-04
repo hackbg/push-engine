@@ -46,6 +46,8 @@ Chainlink Data Streams Transmitter is a service that bridges off-chain data stre
     - [UI usage](#ui-usage)
       - [Streams](#streams)
         - [Contract](#contract)
+          - [EVM Contract](#evm-contract)
+          - [SVM Program](#svm-program)
         - [Add new data stream](#add-new-data-stream)
       - [Chain](#chain)
         - [Switch chain](#switch-chain)
@@ -126,15 +128,15 @@ Before setting up the , ensure you have the required dependencies installed.
 
 To make setting environment variables easier there is a `.env.example` file in the root folder of this project. You can copy it to a new `.env` file and replace the values with your own.
 
-| Name                        | Description                                                                                                                                                                                                                                                               |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Name | Description|
+| -------------|------------- | 
 | `REDIS_PASSWORD`            | Required for the local persistance layer operation. If not provided the setup will fallback to the default Redis password.                                                                                                                                                |
 | `PRIVATE_KEY`               | Used to make payments in LINK for the Data Streams verifications on-chain and for writing data on-chain on the user provided custom contract. This account will be used to pay for the transaction fees in the respective native currency for the target chain specified. |
 | `DATASTREAMS_HOSTNAME`      | Chainlink Data Streams Hostname **without** `https://`. Ex.: `api.testnet-dataengine.chain.link`                                                                                                                                                                          |
 | `DATASTREAMS_WS_HOSTNAME`   | WebSocket Hostname for Data Streams **without** `wss://`. Ex.: `ws.testnet-dataengine.chain.link`                                                                                                                                                                         |
 | `DATASTREAMS_CLIENT_ID`     | Client ID for authentication.                                                                                                                                                                                                                                             |
-| `DATASTREAMS_CLIENT_SECRET` | Client Secret for authentication.                                                                                                                                                                                                                                         |  |
-| `HEALTH_PORT`               | (Optional) Port on which the transmitter can be pinged for health check for integration with a monitoring service. Defaults to `8081`.                                                                                                                                    |  |
+| `DATASTREAMS_CLIENT_SECRET` | Client Secret for authentication.                                                                                                                                                                                                                                         |     |
+| `HEALTH_PORT`               | (Optional) Port on which the transmitter can be pinged for health check for integration with a monitoring service. Defaults to `8081`.                                                                                                                                    |     |
 
 > [!NOTE]
 > All other user configurations are stored locally using Redis file eliminating the need for separate configuration files. This ensures fast access and persistence across sessions without manual file handling. Only sensitive configurations, such as API keys and database credentials, are managed separately in the `.env` file. The application automatically loads and updates configurations in Redis as needed. Users do not need to manually edit or maintain configuration files, simplifying setup and deployment.
@@ -400,7 +402,11 @@ First section allows monitoring and managing of the streams. Each row contains t
 
 ##### Contract
 
-Clicking the contract icon <img src="public/readme/contract-btn.png" alt="contract-btn" width="30"/> in the table above opens the contract configuration page. This page allows users to view and edit contract properties for the stream on the currently connected chain. Users can also add custom contracts, define ABI, and specify functions to store feed results on-chain.
+Clicking the contract icon <img src="public/readme/contract-btn.png" alt="contract-btn" width="30"/> in the table above opens the contract configuration page. This page allows users to view and edit contract properties for the stream on the currently connected chain. Depending on the current network (EVM or SVM) the following options are available
+
+###### EVM Contract
+
+Add custom contracts, define ABI, and specify functions to store feed results.
 
 **Contract address**
 ![contract-address](public/readme/contract-address.png)
@@ -415,12 +421,34 @@ View/Add or Edit the name of the target contract function to be called to store 
 **Arguments**
 ![arguments](public/readme/arguments.png)
 
-View, add, or edit the report argument field names in the exact order the contract expects them. Separate each field with a comma (,). Refer to the [Data Streams Report Schemas Documentation](https://docs.chain.link/data-streams/reference/report-schema) for more details.
+View, add, or edit the report argument field names in the exact order the contract expects them. Refer to the [Data Streams Report Schemas Documentation](https://docs.chain.link/data-streams/reference/report-schema) for more details.
 
 **ABI**
 ![abi](public/readme/abi.png)
 
 View/Add or Edit the ABI of the target contract.
+
+###### SVM Program
+
+Add custom program, define IDL and specify instructions to store feed results.
+
+**Instruction**
+![instruction](public/readme/instruction.png)
+View/Add or Edit the name of the target program instructin to be called to store report result data on-chain.
+
+**Instruction arguments**
+![instruction-arguments](public/readme/instruction-arguments.png)
+View, add, or edit the report argument field names and type (number or string) in the exact order the program expects them. Refer to the [Data Streams Report Schemas Documentation](https://docs.chain.link/data-streams/reference/report-schema) for more details.
+
+**Program Derived Address (PDA)**
+![pda](public/readme/pda.png)
+View, add or edit the name of the program PDA where the result will be stored.
+
+**IDL**
+![idl](public/readme/idl.png)
+View/Add or Edit the IDL of the target program.
+
+---
 
 ##### Add new data stream
 
