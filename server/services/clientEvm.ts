@@ -169,6 +169,19 @@ async function getContractAddresses() {
       functionName: 's_feeManager',
     });
 
+    if (!isAddressValid(feeManagerAddress)) {
+      logger.warn(
+        '⚠️ Invalid fee manager address or fee manager is not installed on current network',
+        { chainId, feeManagerAddress }
+      );
+      return {
+        verifierProxyAddress,
+        feeManagerAddress: zeroAddress,
+        rewardManagerAddress: zeroAddress,
+        feeTokenAddress: zeroAddress,
+      };
+    }
+
     const [rewardManagerAddress, feeTokenAddress] = await Promise.all([
       readContract(publicClient, {
         address: feeManagerAddress,
@@ -232,7 +245,7 @@ export async function verifyReport(report: StreamReport) {
     if (
       !contractAddresses ||
       Object.values(contractAddresses)
-        .map((address) => isAddressValid(address))
+        .map((address) => isAddress(address))
         .includes(false)
     ) {
       logger.warn('⚠️ Invalid contract addresses', { contractAddresses });
@@ -246,6 +259,13 @@ export async function verifyReport(report: StreamReport) {
       verifierProxyAddress,
     } = contractAddresses;
 
+    if (verifierProxyAddress === zeroAddress) {
+      logger.warn('⚠️ Invalid verifier proxy addresses', {
+        verifierProxyAddress,
+      });
+      return;
+    }
+
     // Generate parameter payload for verifyAndUpdateReport calls
     const feeTokenAddressEncoded = encodeAbiParameters(
       [{ type: 'address', name: 'parameterPayload' }],
@@ -254,7 +274,7 @@ export async function verifyReport(report: StreamReport) {
 
     const gasCap = await getGasCap();
 
-    if (feeManagerAddress && feeManagerAddress !== zeroAddress) {
+    if (feeManagerAddress !== zeroAddress && feeTokenAddress !== zeroAddress) {
       logger.info('⌛ Estimating fee for verification');
       const [fee] = await readContract(publicClient, {
         address: feeManagerAddress,
