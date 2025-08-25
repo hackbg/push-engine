@@ -384,6 +384,42 @@ describe('Client', () => {
       );
       expect(result?.price).toEqual(1094620000000000000n);
     });
+    it.only('should verify if there is no fee manager on the network', async () => {
+      const logSpy = jest.spyOn(logger, 'info');
+      getChainIdMock.mockResolvedValue('31337');
+      getCustomChainsMock.mockResolvedValue([hardhat]);
+      getVerifierMock.mockResolvedValueOnce(
+        '0xE17A7C6A7c2eF0Cb859578aa1605f8Bc2434A365'
+      );
+      simulateReadContractMock.mockResolvedValueOnce(zeroAddress);
+      getGasCapMock.mockResolvedValueOnce(5000n.toString());
+      estimateContractGasMock.mockResolvedValueOnce(1234n);
+      simulateContractMock.mockResolvedValueOnce({
+        request: { address: '0x0000000000000000000000000000000000000000' },
+        result: mockVerifiedReport,
+      } as unknown as viemActions.SimulateContractReturnType);
+      simulateWaitForTransactionReceipt.mockResolvedValueOnce(
+        mockTransactionReceipt
+      );
+      const result = await verifyReport(
+        mockRawReport as unknown as StreamReport
+      );
+      expect(result?.feedId).toEqual(
+        '0x0003735a076086936550bd316b18e5e27fc4f280ee5b6530ce68f5aad404c796'
+      );
+      expect(logSpy).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining(
+          '⚠️ Invalid fee manager address or fee manager is not installed on current network'
+        ),
+        {
+          chainId: '31337',
+          feeManagerAddress: zeroAddress,
+        }
+      );
+
+      expect(result?.price).toEqual(18854937605278083000n);
+    });
   });
 
   describe('executeContract', () => {
@@ -499,6 +535,30 @@ describe('Client', () => {
         { gas: 1234n, gasCap: '500' }
       );
       expect(result).toEqual(undefined);
+    });
+    it.only('ZERO', async () => {
+      getContractAddressMock.mockResolvedValueOnce(
+        '0xfa162F0A25b2C2aA32Ddaacda872B6D7b2c38E47'
+      );
+      getChainIdMock.mockResolvedValue('31337');
+      getCustomChainsMock.mockResolvedValue([hardhat]);
+      estimateContractGasMock.mockResolvedValueOnce(1234n);
+      getGasCapMock.mockResolvedValueOnce(5000n.toString());
+      simulateContractMock.mockResolvedValueOnce({
+        request: { address: '0x0000000000000000000000000000000000000000' },
+      } as unknown as viemActions.SimulateContractReturnType);
+      simulateWriteContractMock.mockResolvedValueOnce(zeroHash);
+      simulateWaitForTransactionReceipt.mockResolvedValueOnce(
+        mockTransactionReceipt
+      );
+
+      const result = await executeContract({
+        report: mockReport,
+        functionArgs: mockFunctionArgs,
+        functionName: mockFunctionName,
+        abi: mockAbi,
+      });
+      expect(result?.status).toEqual('success');
     });
     it('should execute contract', async () => {
       getContractAddressMock.mockResolvedValueOnce(
