@@ -170,7 +170,7 @@ async function getContractAddresses() {
     });
 
     if (!isAddressValid(feeManagerAddress)) {
-      logger.warn(
+      logger.info(
         '⚠️ Invalid fee manager address or fee manager is not installed on current network',
         { chainId, feeManagerAddress }
       );
